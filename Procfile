@@ -1,1 +1,1 @@
-web: kindletopdf
+web: Serve-exe

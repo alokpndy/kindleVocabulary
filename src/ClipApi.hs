@@ -97,3 +97,8 @@ run2 = do
 -- http://localhost:3000/swagger-ui/
 -- to kill   kill -9 $(lsof -i:3000 -t)
 
+
+main3 :: Int ->  IO ()
+main3 port = do
+  file <- T.readFile "My Clippings.txt"
+  run port $ (serve (Proxy @ClipApi) (server file))

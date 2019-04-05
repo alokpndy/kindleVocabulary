@@ -37,7 +37,7 @@ vocabs = do
 connectionHandler :: Connection ->  IO  [Vocabulary]
 connectionHandler conn  = do
   wordLookups  <-  query_ conn "select word_key, book_key, usage, timestamp from lookups" :: IO [(String, String, String, Integer)]
-  traverse (bookDetail conn) $ take 2 wordLookups
+  traverse (bookDetail conn)  wordLookups
    
   where
     bookDetail :: Connection -> (String, String, String, Integer) -> IO Vocabulary

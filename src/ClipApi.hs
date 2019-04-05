@@ -90,10 +90,10 @@ test  x =   serve swaggerApi $
   swaggerSchemaUIServer (toSwagger (Proxy :: Proxy ClipApi)) :<|> (server x) 
   
 
-
-run2 = do
+run2 :: Int ->  IO ()
+run2 port = do
   file <- T.readFile "My Clippings.txt"
-  run 3000  (test file)
+  run port  (test file)
 -- http://localhost:3000/swagger-ui/
 -- to kill   kill -9 $(lsof -i:3000 -t)
 

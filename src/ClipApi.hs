@@ -24,6 +24,10 @@ import Data.List
 import qualified Data.Text.IO   as T
 import Filter 
 import Types
+import FlashCards
+import           Database.SQLite.Simple
+import           Database.SQLite.Simple.FromRow
+import Control.Monad.IO.Class
 
 clips2 :: Text ->  [Clipping]
 clips2 file = do
@@ -52,13 +56,20 @@ instance  FromHttpApiData SortBy where
 type ClipApi =
        "clippingGetAll" :> QueryParam "listBy" SortBy :> QueryParams "getBy" String
        :> QueryFlag "fav" :> Get '[JSON] [Clipping]
+type VocApi =
+      "vocabGetAll" :> Get '[JSON] [Vocabulary] 
+type Api = ClipApi :<|> VocApi
 
-
-       
-server :: Text ->  Server ClipApi
-server tx = do
-  clippingGetAll 
-  where 
+         
+server :: Text  -> Connection ->  Server Api
+server tx c  = do
+  clippingGetAll :<|> vocabGetAll
+  where
+    vocabGetAll ::   Handler [Vocabulary]
+    vocabGetAll = do
+      liftIO $  connectionHandler c
+      
+   
     clippingGetAll :: Maybe SortBy -> [String] ->  Bool -> Handler [Clipping]
     clippingGetAll qp xs qf = case qp of
       Nothing -> return []
@@ -70,10 +81,12 @@ server tx = do
 
 main2 :: IO ()
 main2 = do
+  conn <- open "vocab.db" 
   file <- T.readFile "My Clippings.txt"
-  run 3031 $ (serve (Proxy @ClipApi) (server file)) 
+  run 3031 $ (serve (Proxy @Api) (server file conn)) 
 -- http://localhost:3000/clippingGetAll?listBy=Ascending&fav=true
 
+{-
 instance ToSchema Clipping
 instance ToSchema ClipFormat
 
@@ -96,9 +109,10 @@ run2 port = do
   run port  (test file)
 -- http://localhost:3000/swagger-ui/
 -- to kill   kill -9 $(lsof -i:3000 -t)
-
+-}
 
 main3 :: Int ->  IO ()
 main3 port = do
+  conn <- open "vocab.db"
   file <- T.readFile "My Clippings.txt"
-  run port $ (serve (Proxy @ClipApi) (server file))
+  run port $ (serve (Proxy @Api) (server file conn))

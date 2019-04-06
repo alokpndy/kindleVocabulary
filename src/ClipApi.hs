@@ -28,6 +28,8 @@ import FlashCards
 import           Database.SQLite.Simple
 import           Database.SQLite.Simple.FromRow
 import Control.Monad.IO.Class
+import Servant.HTML.Blaze
+import Text.Blaze.Html5 hiding (main)
 
 
 
@@ -66,18 +68,18 @@ type ClipApi =
        :> QueryFlag "fav" :> Get '[JSON] [Clipping]
 type VocApi = "vocabGetAll" :> Get '[JSON] [Vocabulary]
 type VocQueryApi = "vocabGetBy" :> QueryFlag "isMastered" :> QueryFlag "isDeleted"
-              :> Capture "getListOf" Int :> Capture "fromDate" Integer :> QueryParam "toDate" Int :> Get '[JSON] [Vocabulary]
+              :> Capture "getListOf" Int :> Capture "fromIndex" Integer :> QueryParam "toDate" Int :> Get '[JSON] [Vocabulary]
 type VocUpdateApi = "vocUpdate" :> ReqBody '[JSON] [Vocabulary] :> PutNoContent '[JSON] NoContent
 type VocabDeleteApi = "vocDelete" :> Capture "bookKey" Text :> DeleteNoContent '[JSON] NoContent
       
-type Api = ClipApi :<|> VocApi :<|> VocQueryApi :<|> VocUpdateApi :<|> VocabDeleteApi
+type Api = ClipApi :<|> VocApi :<|> VocQueryApi :<|> VocUpdateApi :<|> VocabDeleteApi 
 
 
 
 -- | Server --------------------------------------------------      
 server :: Text  -> Connection ->  Server Api
 server tx c  = do
-  clippingGetAll :<|> vocabGetAll :<|> vocQuery :<|> vocUpdate :<|> vocabDelete
+  clippingGetAll :<|> vocabGetAll :<|> vocQuery :<|> vocUpdate :<|> vocabDelete  
   
   where
     vocabGetAll ::   Handler [Vocabulary]
@@ -87,7 +89,7 @@ server tx c  = do
     vocQuery :: Bool -> Bool -> Int ->  Integer -> Maybe Int -> Handler [Vocabulary]
     vocQuery m1 d1 l1 fd td = do
       all <- liftIO $ connectionHandler c
-      return $ take l1 $ filter (\(Vocabulary a tt t wk u m d) -> m == m1 && d1 == d && t <= fd) all
+      return $ take l1 $ drop ((fromIntegral fd) - 1) $  filter (\(Vocabulary a tt t wk u m d bk) -> m == m1 && d1 == d) all
 
     vocUpdate :: [Vocabulary] -> Handler NoContent
     vocUpdate v = error "Update Error"
@@ -95,8 +97,6 @@ server tx c  = do
     vocabDelete :: Text -> Handler NoContent
     vocabDelete bk = error "Deleted Book with key" 
     
-      
-   
     clippingGetAll :: Maybe SortBy -> [String] ->  Bool -> Handler [Clipping]
     clippingGetAll qp xs qf = case qp of
       Nothing -> return []
@@ -104,8 +104,9 @@ server tx c  = do
         Ascending -> if qf == True then return  (clips2 tx)
                             else return (clips2 tx)
         Descending -> return (clips2 tx) 
-   
 
+
+  
 
 -- | Deploy --------------------------------------------------
 main2 :: IO ()
@@ -172,6 +173,6 @@ curl -X PUT "http://localhost:3000/vocUpdate" -H "accept: application/json;chars
 
 curl -X DELETE "http://localhost:3000/vocDelete/12939" -H "accept: application/json;charset=utf-8"
 
-curl -X GET "http://localhost:3000/vocabGetBy/20/1423590816593?isMastered=false&isDeleted=false" -H "accept: application/json;charset=utf-8"
+curl -X GET "http://localhost:3000/vocabGetBy/10/4?isMastered=false&isDeleted=false&toDate=1423590816593" -H "accept: application/json;charset=utf-8"
 
 -}

@@ -32,6 +32,8 @@ dependencies:
 - text
 - KindleNotes
 - sqlite-simple
+- servant-blaze
+- blaze-html
 library:
   source-dirs: src
 

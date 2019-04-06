@@ -1,7 +1,8 @@
 module Main where
 
 import ClipApi
-import One 
+import One
+import FlashCards
 
 
 
@@ -16,6 +17,6 @@ import System.Environment (lookupEnv)
 main :: IO ()
 main = do 
   port <- fmap (fromMaybe "3000") (lookupEnv "PORT")
-  putStrLn $ "Serving from port at " ++ port 
+  initDB 
   main3 (read port)
   run2 (read port)

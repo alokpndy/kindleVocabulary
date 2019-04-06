@@ -121,9 +121,9 @@ instance ToSchema ClipFormat
 instance ToSchema Vocabulary
 
 type SwaggerUI = SwaggerSchemaUI "swagger-ui" "swagger.json"
-type API = SwaggerUI :<|> Api 
+type SWAPI = SwaggerUI :<|> Api 
 
-swaggerApi :: Proxy API 
+swaggerApi :: Proxy SWAPI 
 swaggerApi = Proxy
 
 
@@ -142,8 +142,36 @@ run2 port = do
 -- to kill   kill -9 $(lsof -i:3000 -t)
 
 
+run3 ::   IO ()
+run3 = do
+  conn <- open "vocab.db"
+  file <- T.readFile "My Clippings.txt"
+  run 3000  (test file conn)
+-- http://localhost:3000/swagger-ui/
+-- to kill   kill -9 $(lsof -i:3000 -t)
+-- https://clipping-json.herokuapp.com/vocabGetBy/20/1423590816593?isMastered=false&isDeleted=false
+
+
 main3 :: Int ->  IO ()
 main3 port = do
   conn <- open "vocab.db"
   file <- T.readFile "My Clippings.txt"
   run port $ (serve (Proxy @Api) (server file conn))
+
+
+
+
+
+
+
+--------------------
+{-
+
+curl -X PUT "http://localhost:3000/vocUpdate" -H "accept: application/json;charset=utf-8" -H "Content-Type: application/json;charset=utf-8" -d "[ { \"author\": \"string\", \"title\": \"string\", \"time\": 0, \"wordKey\": \"string\", \"usage\": \"string\", \"mastered\": true, \"deleted\": false }]"
+
+
+curl -X DELETE "http://localhost:3000/vocDelete/12939" -H "accept: application/json;charset=utf-8"
+
+curl -X GET "http://localhost:3000/vocabGetBy/20/1423590816593?isMastered=false&isDeleted=false" -H "accept: application/json;charset=utf-8"
+
+-}

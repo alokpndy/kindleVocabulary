@@ -29,11 +29,15 @@ import           Database.SQLite.Simple
 import           Database.SQLite.Simple.FromRow
 import Control.Monad.IO.Class
 
+
+
+
+
+-- | Clippings ----------------------------------------------
 clips2 :: Text ->  [Clipping]
 clips2 file = do
-   -- take 40 $ onlHighlight file
       onlHighlight file
-
+      
 data SortBy = Ascending | Descending  deriving (Generic) 
 data ListBy  = Author SortBy | Book SortBy deriving (Generic) 
 
@@ -53,21 +57,44 @@ instance  FromHttpApiData SortBy where
        "Descending" -> return  Descending
        _            -> Left $ "Unspecifed Sort Order "
 
+
+
+
+-- | Endpoints ----------------------------------------------- 
 type ClipApi =
        "clippingGetAll" :> QueryParam "listBy" SortBy :> QueryParams "getBy" String
        :> QueryFlag "fav" :> Get '[JSON] [Clipping]
-type VocApi =
-      "vocabGetAll" :> Get '[JSON] [Vocabulary] 
-type Api = ClipApi :<|> VocApi
+type VocApi = "vocabGetAll" :> Get '[JSON] [Vocabulary]
+type VocQueryApi = "vocabGetBy" :> QueryFlag "isMastered" :> QueryFlag "isDeleted"
+              :> Capture "getListOf" Int :> Capture "fromDate" Integer :> QueryParam "toDate" Int :> Get '[JSON] [Vocabulary]
+type VocUpdateApi = "vocUpdate" :> ReqBody '[JSON] [Vocabulary] :> PutNoContent '[JSON] NoContent
+type VocabDeleteApi = "vocDelete" :> Capture "bookKey" Text :> DeleteNoContent '[JSON] NoContent
+      
+type Api = ClipApi :<|> VocApi :<|> VocQueryApi :<|> VocUpdateApi :<|> VocabDeleteApi
 
-         
+
+
+-- | Server --------------------------------------------------      
 server :: Text  -> Connection ->  Server Api
 server tx c  = do
-  clippingGetAll :<|> vocabGetAll
+  clippingGetAll :<|> vocabGetAll :<|> vocQuery :<|> vocUpdate :<|> vocabDelete
+  
   where
     vocabGetAll ::   Handler [Vocabulary]
     vocabGetAll = do
       liftIO $  connectionHandler c
+
+    vocQuery :: Bool -> Bool -> Int ->  Integer -> Maybe Int -> Handler [Vocabulary]
+    vocQuery m1 d1 l1 fd td = do
+      all <- liftIO $ connectionHandler c
+      return $ take l1 $ filter (\(Vocabulary a tt t wk u m d) -> m == m1 && d1 == d && t <= fd) all
+
+    vocUpdate :: [Vocabulary] -> Handler NoContent
+    vocUpdate v = error "Update Error"
+    
+    vocabDelete :: Text -> Handler NoContent
+    vocabDelete bk = error "Deleted Book with key" 
+    
       
    
     clippingGetAll :: Maybe SortBy -> [String] ->  Bool -> Handler [Clipping]
@@ -79,6 +106,8 @@ server tx c  = do
         Descending -> return (clips2 tx) 
    
 
+
+-- | Deploy --------------------------------------------------
 main2 :: IO ()
 main2 = do
   conn <- open "vocab.db" 
@@ -86,30 +115,32 @@ main2 = do
   run 3031 $ (serve (Proxy @Api) (server file conn)) 
 -- http://localhost:3000/clippingGetAll?listBy=Ascending&fav=true
 
-{-
+
 instance ToSchema Clipping
 instance ToSchema ClipFormat
+instance ToSchema Vocabulary
 
 type SwaggerUI = SwaggerSchemaUI "swagger-ui" "swagger.json"
-type API = SwaggerUI :<|> ClipApi 
+type API = SwaggerUI :<|> Api 
 
 swaggerApi :: Proxy API 
 swaggerApi = Proxy
 
 
 
-test :: Text ->  Application
-test  x =   serve swaggerApi $
-  swaggerSchemaUIServer (toSwagger (Proxy :: Proxy ClipApi)) :<|> (server x) 
+test :: Text  -> Connection ->  Application
+test  x  c =   serve swaggerApi $
+  swaggerSchemaUIServer (toSwagger (Proxy :: Proxy Api)) :<|> (server x c) 
   
 
 run2 :: Int ->  IO ()
 run2 port = do
+  conn <- open "vocab.db"
   file <- T.readFile "My Clippings.txt"
-  run port  (test file)
+  run port  (test file conn)
 -- http://localhost:3000/swagger-ui/
 -- to kill   kill -9 $(lsof -i:3000 -t)
--}
+
 
 main3 :: Int ->  IO ()
 main3 port = do

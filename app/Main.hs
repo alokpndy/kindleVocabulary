@@ -17,4 +17,5 @@ main :: IO ()
 main = do 
   port <- fmap (fromMaybe "3000") (lookupEnv "PORT")
   putStrLn $ "Serving from port at " ++ port 
-  main3 (read port) 
+  main3 (read port)
+  run2 (read port)

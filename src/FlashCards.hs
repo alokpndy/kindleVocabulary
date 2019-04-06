@@ -14,11 +14,13 @@ import GHC.Generics
 import Data.Aeson
 import Control.Monad.IO.Class 
 
-data Vocabulary = Vocabulary { author  :: T.Text,
-                               title   :: T.Text,
-                               time    :: Integer,
-                               wordKey :: T.Text,
-                               usage   :: T.Text
+data Vocabulary = Vocabulary { author     :: T.Text,
+                               title      :: T.Text,
+                               time       :: Integer,
+                               wordKey    :: T.Text,
+                               usage      :: T.Text,
+                               mastered :: Bool,
+                               deleted  :: Bool
                              } deriving (Eq, Show, Generic) 
                                
 instance ToJSON Vocabulary
@@ -37,12 +39,12 @@ vocabs = do
 connectionHandler :: Connection ->  IO  [Vocabulary]
 connectionHandler conn  = do
   wordLookups  <-  query_ conn "select word_key, book_key, usage, timestamp from lookups" :: IO [(String, String, String, Integer)]
-  traverse (bookDetail conn)  $ take 10 wordLookups
+  traverse (bookDetail conn)  $ take 50 wordLookups
    
   where
     bookDetail :: Connection -> (String, String, String, Integer) -> IO Vocabulary
     bookDetail c (w, key, u, t)  =  do 
       detail@ (x : xs)  <- queryNamed c "SELECT title, authors FROM book_info WHERE guid=:book_key" [":book_key" := key]
-      return $ Vocabulary (snd x) (fst x) t (T.pack w) (T.pack u)
+      return $ Vocabulary (snd x) (fst x) t (T.pack w) (T.pack u) False False 
   
 

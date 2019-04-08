@@ -9,21 +9,36 @@ import           Control.Applicative
 import qualified Data.Text as T
 import           Database.SQLite.Simple
 import           Database.SQLite.Simple.FromRow
+import           Database.SQLite.Simple.FromField
+import           Database.SQLite.Simple.Ok
 import Data.Foldable
 import GHC.Generics
 import Data.Aeson
-import Control.Monad.IO.Class 
+import Control.Monad.IO.Class
+import Data.Typeable
 
 data Vocabulary = Vocabulary { author     :: T.Text,
                                title      :: T.Text,
-                               time       :: Integer,
+                               timeS       :: Integer,
                                wordKey    :: T.Text,
                                usage      :: T.Text,
                                mastered   :: Bool,
                                deleted    :: Bool,
                                bookKey    :: T.Text 
                              } deriving (Eq, Show, Generic) 
-                               
+
+intToBool :: Integer -> Bool
+intToBool i
+  | i == 0 = False
+  | i == 1 = True
+  | otherwise = False
+
+boolToInt :: Bool -> Integer
+boolToInt b
+  | b == False = 0
+  | b == True = 1
+  | otherwise = 0
+
 instance ToJSON Vocabulary
 instance FromJSON Vocabulary
 
@@ -35,26 +50,55 @@ vocabs = do
    close conn
    print vcs 
 
-   
+
+newtype DebugShowType = DebugShowType String deriving (Eq, Show, Typeable)
+
+instance FromField DebugShowType where
+  fromField f = cvt f . fieldData $ f where
+    cvt _ v = Ok $ DebugShowType (show v)
+
   
 connectionHandler :: Connection ->  IO  [Vocabulary]
 connectionHandler conn  = do
- 
-  wordLookups  <-  query_ conn "select word_key, book_key, usage, timestamp from lookups" :: IO [(String, String, String, Integer)]
-  traverse (bookDetail conn)  $ take 50 wordLookups
+  columns <- query_ conn "PRAGMA table_info (LOOKUPS)" :: IO [[DebugShowType]]
+  liftIO $ insertNewColumn conn (length columns)
+  wordLookups  <-  query_ conn "select word_key, book_key, usage, timestamp, isMastered, isDeleted  from lookups" :: IO [(String, String, String, Integer, Integer, Integer)]
+  traverse (bookDetail conn) wordLookups
+  
+
    
   where
-    bookDetail :: Connection -> (String, String, String, Integer) -> IO Vocabulary
-    bookDetail c (w, key, u, t)  =  do
+    bookDetail :: Connection -> (String, String, String, Integer, Integer, Integer) -> IO Vocabulary
+    bookDetail c (w, key, u, t, iM, iD)  =  do
       detail@ (x : xs)  <- queryNamed c "SELECT title, authors FROM book_info WHERE guid=:book_key" [":book_key" := key]
-     -- insertInDatabase  (snd x) (fst x) t (T.pack w) (T.pack u) False False (T.pack key) 
-      return $ Vocabulary (snd x) (fst x) t (T.pack w) (T.pack u) False False "book_key"
+      return $ Vocabulary (snd x) (fst x) t (T.pack w) (T.pack u) (intToBool iM) (intToBool iD) (T.pack key)
 
-insertInDatabase :: T.Text -> T.Text -> Integer -> T.Text -> T.Text -> Bool -> Bool -> T.Text ->  IO ()
-insertInDatabase  x y w t u m d bk = do 
-    newConn <- open "myvocabulary.db"
-    execute newConn "INSERT INTO myVocabulary VALUES (?,?,?,?,?,?,?,?)" (x, y, w, t, u, m, d, bk )
-    close newConn
+    insertNewColumn :: Connection -> Int -> IO ()
+    insertNewColumn c i
+        | i == 7 = do
+            (execute_ c "ALTER TABLE LOOKUPS ADD isDeleted INTEGER default 0")
+            (execute_ c "ALTER TABLE LOOKUPS ADD isMastered INTEGER default 0")
+            return () 
+        | otherwise = return ()
+        
+
+updateInDatabase :: Connection -> Bool -> Bool -> Integer ->  IO ()
+updateInDatabase  conn m d t = do
+    executeNamed conn "UPDATE lookups SET isMastered = :iM, isDeleted = :iD  WHERE timestamp = :tm" [":iM" := boolToInt m, ":iD" := boolToInt d, ":tm" := t]
+  -- executeNamed conn "UPDATE lookups SET  isMastered = :iD  WHERE timestamp = :tm" [":iD" := (boolToInt m :: Integer), ":tm" := t]
+  
+  
+   
+  
+
+
+vocabDel :: Connection -> Integer -> IO ()
+vocabDel c i = do
+  liftIO $ print i 
+  executeNamed c "UPDATE lookups SET  isDeleted = :iD  WHERE timestamp = :tm" [":iD" := (1 :: Integer), ":tm" := i]
+ 
+  
+  
   
 -- | create Data Base
 initDB ::  IO ()

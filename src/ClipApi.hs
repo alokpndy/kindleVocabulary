@@ -70,7 +70,7 @@ type VocApi = "vocabGetAll" :> Get '[JSON] [Vocabulary]
 type VocQueryApi = "vocabGetBy" :> QueryFlag "isMastered" :> QueryFlag "isDeleted"
               :> Capture "getListOf" Int :> Capture "fromIndex" Integer :> QueryParam "toDate" Int :> Get '[JSON] [Vocabulary]
 type VocUpdateApi = "vocUpdate" :> ReqBody '[JSON] [Vocabulary] :> PutNoContent '[JSON] NoContent
-type VocabDeleteApi = "vocDelete" :> Capture "bookKey" Text :> DeleteNoContent '[JSON] NoContent
+type VocabDeleteApi = "vocDelete" :> Capture "timestamp" Integer :> DeleteNoContent '[JSON] NoContent
       
 type Api = ClipApi :<|> VocApi :<|> VocQueryApi :<|> VocUpdateApi :<|> VocabDeleteApi 
 
@@ -84,18 +84,33 @@ server tx c  = do
   where
     vocabGetAll ::   Handler [Vocabulary]
     vocabGetAll = do
-      liftIO $  connectionHandler c
+      liftIO $  connectionHandler c <* close c 
+     
+      
 
     vocQuery :: Bool -> Bool -> Int ->  Integer -> Maybe Int -> Handler [Vocabulary]
     vocQuery m1 d1 l1 fd td = do
-      all <- liftIO $ connectionHandler c
-      return $ take l1 $ drop ((fromIntegral fd) - 1) $  filter (\(Vocabulary a tt t wk u m d bk) -> m == m1 && d1 == d) all
+      liftIO  $  do
+        con <- open "vocab.db"
+        all <-  connectionHandler con
+        close con 
+        return $ take l1 $ drop ((fromIntegral fd) - 1) $  filter (\(Vocabulary a tt t wk u m d bk) -> m == m1 && d1 == d) all
 
-    vocUpdate :: [Vocabulary] -> Handler NoContent
-    vocUpdate v = error "Update Error"
+    vocUpdate ::  [Vocabulary] -> Handler NoContent
+    vocUpdate vo = 
+      liftIO $ do
+         con <- open "vocab.db"
+         traverse (\v ->   updateInDatabase con  (mastered v) (deleted v) (timeS v)) vo
+         close con
+         return NoContent 
     
-    vocabDelete :: Text -> Handler NoContent
-    vocabDelete bk = error "Deleted Book with key" 
+    vocabDelete :: Integer -> Handler NoContent
+    vocabDelete i = 
+      liftIO $ do
+        con <- open "vocab.db"
+        vocabDel con i
+        close con
+        return NoContent
     
     clippingGetAll :: Maybe SortBy -> [String] ->  Bool -> Handler [Clipping]
     clippingGetAll qp xs qf = case qp of

@@ -96,7 +96,7 @@ server tx c  = do
         con <- open "vocab.db"
         all <-  connectionHandler con
         close con 
-        return $ take l1 $ drop ((fromIntegral fd) - 1) $  filter (\(Vocabulary a tt t wk u m d bk) -> m == m1 && d1 == d) all
+        return $ take l1 $ drop (fromIntegral fd) $  filter (\(Vocabulary a tt t wk u m d bk) -> m == m1 && d1 == d) all
 
     vocUpdate ::  [Vocabulary] -> Handler NoContent
     vocUpdate vo = 

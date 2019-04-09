@@ -60,7 +60,7 @@ instance FromField DebugShowType where
   
 connectionHandler :: Connection ->  IO  [Vocabulary]
 connectionHandler conn  = do
-  columns <- query_ conn "PRAGMA table_info (LOOKUPS)" :: IO [[DebugShowType]]
+  columns <- query_ conn "PRAGMA table_info (LOOKUPS)" :: IO [[DebugShowType]] 
   liftIO $ insertNewColumn conn (length columns)
   wordLookups  <-  query_ conn "select word_key, book_key, usage, timestamp, isMastered, isDeleted  from lookups" :: IO [(String, String, String, Integer, Integer, Integer)]
   traverse (bookDetail conn) wordLookups
@@ -94,8 +94,7 @@ updateInDatabase  conn m d t = do
 
 vocabDel :: Connection -> Integer -> IO ()
 vocabDel c i = do
-  liftIO $ print i 
-  executeNamed c "UPDATE lookups SET  isDeleted = :iD  WHERE timestamp = :tm" [":iD" := (1 :: Integer), ":tm" := i]
+  liftIO $ executeNamed c "UPDATE lookups SET  isDeleted = :iD  WHERE timestamp = :tm" [":iD" := (1 :: Integer), ":tm" := i]
  
   
   

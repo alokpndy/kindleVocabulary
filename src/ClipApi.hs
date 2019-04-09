@@ -83,8 +83,10 @@ server tx c  = do
   
   where
     vocabGetAll ::   Handler [Vocabulary]
-    vocabGetAll = do
-      liftIO $  connectionHandler c <* close c 
+    vocabGetAll = 
+      liftIO $ do 
+         con <- open "vocab.db"
+         connectionHandler con <* close con 
      
       
 

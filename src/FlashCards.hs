@@ -64,22 +64,29 @@ connectionHandler conn  = do
   liftIO $ insertNewColumn conn (length columns)
   wordLookups  <-  query_ conn "select word_key, book_key, usage, timestamp, isMastered, isDeleted  from lookups" :: IO [(String, String, String, Integer, Integer, Integer)]
   traverse (bookDetail conn) wordLookups
-  
-
    
-  where
-    bookDetail :: Connection -> (String, String, String, Integer, Integer, Integer) -> IO Vocabulary
-    bookDetail c (w, key, u, t, iM, iD)  =  do
+  
+bookDetail :: Connection -> (String, String, String, Integer, Integer, Integer) -> IO Vocabulary
+bookDetail c (w, key, u, t, iM, iD)  =  do
       detail@ (x : xs)  <- queryNamed c "SELECT title, authors FROM book_info WHERE guid=:book_key" [":book_key" := key]
       return $ Vocabulary (snd x) (fst x) t (T.pack w) (T.pack u) (intToBool iM) (intToBool iD) (T.pack key)
 
-    insertNewColumn :: Connection -> Int -> IO ()
-    insertNewColumn c i
+insertNewColumn :: Connection -> Int -> IO ()
+insertNewColumn c i
         | i == 7 = do
             (execute_ c "ALTER TABLE LOOKUPS ADD isDeleted INTEGER default 0")
             (execute_ c "ALTER TABLE LOOKUPS ADD isMastered INTEGER default 0")
             return () 
         | otherwise = return ()
+
+
+
+queryNumbersOf :: Connection -> Int -> Integer ->  IO  [Vocabulary]
+queryNumbersOf conn n qt  = do
+  columns <- query_ conn "PRAGMA table_info (LOOKUPS)" :: IO [[DebugShowType]] 
+  liftIO $ insertNewColumn conn (length columns)
+  wordLookups  <- queryNamed conn "select word_key, book_key, usage, timestamp, isMastered, isDeleted  from lookups WHERE timestamp < :Q ORDER BY timestamp DESC LIMIT :L" [":L" := n, ":Q" := qt] :: IO [(String, String, String, Integer, Integer, Integer)]
+  traverse (bookDetail conn) wordLookups
         
 
 updateInDatabase :: Connection -> Bool -> Bool -> Integer ->  IO ()

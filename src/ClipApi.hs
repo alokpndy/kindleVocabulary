@@ -68,7 +68,7 @@ type ClipApi =
        :> QueryFlag "fav" :> Get '[JSON] [Clipping]
 type VocApi = "vocabGetAll" :> Get '[JSON] [Vocabulary]
 type VocQueryApi = "vocabGetBy" :> QueryFlag "isMastered" :> QueryFlag "isDeleted"
-              :> Capture "getListOf" Int :> Capture "fromIndex" Integer :> QueryParam "toDate" Int :> Get '[JSON] [Vocabulary]
+              :> Capture "getListOf" Int  :> Capture "fromTimestamp" Integer :> Get '[JSON] [Vocabulary]
 type VocUpdateApi = "vocUpdate" :> ReqBody '[JSON] [Vocabulary] :> PutNoContent '[JSON] NoContent
 type VocabDeleteApi = "vocDelete" :> Capture "timestamp" Integer :> DeleteNoContent '[JSON] NoContent
       
@@ -90,13 +90,13 @@ server tx c  = do
      
       
 
-    vocQuery :: Bool -> Bool -> Int ->  Integer -> Maybe Int -> Handler [Vocabulary]
-    vocQuery m1 d1 l1 fd td = do
+    vocQuery :: Bool -> Bool -> Int ->  Integer -> Handler [Vocabulary]
+    vocQuery m1 d1 l1 td = do
       liftIO  $  do
         con <- open "vocab.db"
-        all <-  connectionHandler con
+        all <-  queryNumbersOf con l1 td
         close con 
-        return $ take l1 $ drop (fromIntegral fd) $  filter (\(Vocabulary a tt t wk u m d bk) -> m == m1 && d1 == d) all
+        return $ take l1 $  filter (\(Vocabulary a tt t wk u m d bk) -> m == m1 && d1 == d) all
 
     vocUpdate ::  [Vocabulary] -> Handler NoContent
     vocUpdate vo = 

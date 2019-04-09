@@ -81,11 +81,14 @@ insertNewColumn c i
 
 
 
-queryNumbersOf :: Connection -> Int -> Integer ->  IO  [Vocabulary]
+queryNumbersOf :: Connection -> Int -> Maybe Integer ->  IO  [Vocabulary]
 queryNumbersOf conn n qt  = do
   columns <- query_ conn "PRAGMA table_info (LOOKUPS)" :: IO [[DebugShowType]] 
   liftIO $ insertNewColumn conn (length columns)
-  wordLookups  <- queryNamed conn "select word_key, book_key, usage, timestamp, isMastered, isDeleted  from lookups WHERE timestamp < :Q ORDER BY timestamp DESC LIMIT :L" [":L" := n, ":Q" := qt] :: IO [(String, String, String, Integer, Integer, Integer)]
+  wordLookups  <- do
+    case qt of
+      Just qtt -> queryNamed conn "select word_key, book_key, usage, timestamp, isMastered, isDeleted  from lookups WHERE timestamp < :Q ORDER BY timestamp DESC LIMIT :L" [":L" := n, ":Q" := qtt] :: IO [(String, String, String, Integer, Integer, Integer)]
+      Nothing ->  queryNamed conn "select word_key, book_key, usage, timestamp, isMastered, isDeleted  from lookups ORDER BY timestamp DESC LIMIT :L" [":L" := n] :: IO [(String, String, String, Integer, Integer, Integer)]
   traverse (bookDetail conn) wordLookups
         
 

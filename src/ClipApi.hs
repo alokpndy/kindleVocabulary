@@ -68,7 +68,7 @@ type ClipApi =
        :> QueryFlag "fav" :> Get '[JSON] [Clipping]
 type VocApi = "vocabGetAll" :> Get '[JSON] [Vocabulary]
 type VocQueryApi = "vocabGetBy" :> QueryFlag "isMastered" :> QueryFlag "isDeleted"
-              :> Capture "getListOf" Int  :> Capture "fromTimestamp" Integer :> Get '[JSON] [Vocabulary]
+              :> Capture "getListOf" Int  :> QueryParam "fromTimestamp" Integer :> Get '[JSON] [Vocabulary]
 type VocUpdateApi = "vocUpdate" :> ReqBody '[JSON] [Vocabulary] :> PutNoContent '[JSON] NoContent
 type VocabDeleteApi = "vocDelete" :> Capture "timestamp" Integer :> DeleteNoContent '[JSON] NoContent
       
@@ -90,7 +90,7 @@ server tx c  = do
      
       
 
-    vocQuery :: Bool -> Bool -> Int ->  Integer -> Handler [Vocabulary]
+    vocQuery :: Bool -> Bool -> Int -> Maybe  Integer -> Handler [Vocabulary]
     vocQuery m1 d1 l1 td = do
       liftIO  $  do
         con <- open "vocab.db"
